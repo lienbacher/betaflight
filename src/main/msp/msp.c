@@ -105,6 +105,7 @@
 #include "msp/msp_protocol.h"
 #include "msp/msp_protocol_v2_betaflight.h"
 #include "msp/msp_protocol_v2_common.h"
+#include "msp/msp_protocol_v2_sensor.h"
 #include "msp/msp_serial.h"
 
 #include "osd/osd.h"
@@ -747,10 +748,6 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
     case MSP_VOLTAGE_METERS: {
         // write out id and voltage meter values, once for each meter we support
         uint8_t count = supportedVoltageMeterCount;
-#ifdef USE_ESC_SENSOR
-        count -= VOLTAGE_METER_ID_ESC_COUNT - getMotorCount();
-#endif
-
         for (int i = 0; i < count; i++) {
 
             voltageMeter_t meter;
@@ -760,6 +757,35 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
             sbufWriteU8(dst, id);
             sbufWriteU8(dst, (uint8_t)constrain((meter.displayFiltered + 5) / 10, 0, 255));
         }
+
+#ifdef USE_ESC_SENSOR
+        count = supportedVoltageMeterESCCount;
+        count -= VOLTAGE_METER_ID_ESC_COUNT - getMotorCount();  // only read active ESCs
+        for (int i = 0; i < count; i++) {
+
+            voltageMeter_t meter;
+            uint8_t id = (uint8_t)voltageMeterESCIds[i];
+            voltageMeterRead(id, &meter);
+
+            sbufWriteU8(dst, id);
+            sbufWriteU8(dst, (uint8_t)constrain((meter.displayFiltered + 5) / 10, 0, 255));
+        }
+#endif
+
+#ifdef USE_MSP_VOLTAGE_METER
+        count = supportedVoltageMeterMSPCount;
+        count -= MSP_VOLTAGE_MAX_SUPPORTED_CELLS - voltageMeterMSPGetNumCells();  // only read active ESCs
+        for (int i = 0; i < count; i++) {
+
+            voltageMeter_t meter;
+            uint8_t id = (uint8_t)voltageMeterMSPIds[i];
+            voltageMeterRead(id, &meter);
+
+            sbufWriteU8(dst, id);
+            sbufWriteU8(dst, (uint8_t)constrain((meter.displayFiltered + 5) / 10, 0, 255));
+        }
+#endif
+
         break;
     }
 
