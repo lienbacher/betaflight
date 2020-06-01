@@ -3311,6 +3311,45 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
         break;
 #endif
+#if defined(USE_MSP_VOLTAGE_METER)
+    // MSP Cell Sensor Protocol:
+    // uint8_t: number of cells
+    // for each cell:
+    // uint8_t: cell number
+    // uint16_t: cell voltage
+    case MSP2_SENSOR_BATTERY_CELL_VOLTAGE:
+        if (dataSize < 1) {
+            return MSP_RESULT_ERROR;
+        }
+        unsigned count = sbufReadU8(src);   // read number of cells
+        unsigned batteryDataSize = (dataSize - 1) / count;
+        unsigned expectedDataSize = sizeof(uint8_t) + sizeof(uint16_t);
+        if (batteryDataSize < expectedDataSize) {
+            return MSP_RESULT_ERROR;
+        }
+
+        voltageMeterMSPSetNumCells(count);
+
+        uint16_t minVoltage = UINT_MAX;
+        uint16_t maxVoltage = 0;
+
+        for (unsigned ii = 0; ii < count; ii++) {
+            uint8_t cellNumber = sbufReadU8(src);
+            uint16_t cellVoltage = sbufReadU16(src);
+            if (cellVoltage > maxVoltage) {
+                maxVoltage = cellVoltage;
+            }
+            if (cellVoltage < minVoltage) {
+                minVoltage = cellVoltage;
+            }
+            voltageMeterMSPSet(cellNumber, cellVoltage);
+        }
+
+        voltageMeterMSPSetMaxCellVoltage(maxVoltage);
+        voltageMeterMSSSetMinCellVoltage(minVoltage);
+
+        break;
+#endif
     default:
         // we do not know how to handle the (valid) message, indicate error MSP $M!
         return MSP_RESULT_ERROR;
