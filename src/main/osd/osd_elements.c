@@ -604,6 +604,22 @@ static void osdElementAverageCellVoltage(osdElementParms_t *element)
     tfp_sprintf(element->buff + 1, "%d.%02d%c", cellV / 100, cellV % 100, SYM_VOLT);
 }
 
+#ifdef USE_MSP_VOLTAGE_METER
+static void osdElementMinimumCellVoltage(osdElementParms_t *element)
+{
+    const int cellV = getBatteryAverageCellVoltage();
+    element->buff[0] = osdGetBatterySymbol(cellV);
+    tfp_sprintf(element->buff + 1, "%d.%02d%c", cellV / 100, cellV % 100, SYM_VOLT);
+}
+
+static void osdElementCellVoltageDeviation(osdElementParms_t *element)
+{
+    const int cellV = getBatteryAverageCellVoltage();
+    element->buff[0] = osdGetBatterySymbol(cellV);
+    tfp_sprintf(element->buff + 1, "%d.%02d%c", cellV / 100, cellV % 100, SYM_VOLT);
+}
+#endif
+
 static void osdElementCompassBar(osdElementParms_t *element)
 {
     memcpy(element->buff, compassBar + osdGetHeadingIntoDiscreteDirections(DECIDEGREES_TO_DEGREES(attitude.values.yaw), 16), 9);
@@ -1564,6 +1580,10 @@ static const uint8_t osdElementDisplayOrder[] = {
     OSD_PIDRATE_PROFILE,
     OSD_WARNINGS,
     OSD_AVG_CELL_VOLTAGE,
+#ifdef USE_MSP_VOLTAGE_METER
+    OSD_MIN_CELL_VOLTAGE,
+    OSD_VOLTAGE_CELL_DEVIATION,
+#endif
     OSD_DEBUG,
     OSD_PITCH_ANGLE,
     OSD_ROLL_ANGLE,
@@ -1646,6 +1666,10 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
     [OSD_PIDRATE_PROFILE]         = osdElementPidRateProfile,
     [OSD_WARNINGS]                = osdElementWarnings,
     [OSD_AVG_CELL_VOLTAGE]        = osdElementAverageCellVoltage,
+#ifdef USE_MSP_VOLTAGE_METER
+    [OSD_MIN_CELL_VOLTAGE]        = osdElementMinimumCellVoltage,
+    [OSD_VOLTAGE_CELL_DEVIATION]  = osdElementCellVoltageDeviation,
+#endif
 #ifdef USE_GPS
     [OSD_GPS_LON]                 = osdElementGpsLongitude,
     [OSD_GPS_LAT]                 = osdElementGpsLatitude,
@@ -1916,9 +1940,15 @@ void osdUpdateAlarms(void)
     if (getBatteryState() == BATTERY_OK) {
         CLR_BLINK(OSD_MAIN_BATT_VOLTAGE);
         CLR_BLINK(OSD_AVG_CELL_VOLTAGE);
+#ifdef USE_MSP_VOLTAGE_METER
+        CLR_BLINK(OSD_MIN_CELL_VOLTAGE);
+#endif
     } else {
         SET_BLINK(OSD_MAIN_BATT_VOLTAGE);
         SET_BLINK(OSD_AVG_CELL_VOLTAGE);
+#ifdef USE_MSP_VOLTAGE_METER
+        SET_BLINK(OSD_MIN_CELL_VOLTAGE);
+#endif
     }
 
 #ifdef USE_GPS
