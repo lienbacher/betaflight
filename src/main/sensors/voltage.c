@@ -47,7 +47,7 @@
 #include "voltage.h"
 
 const char * const voltageMeterSourceNames[VOLTAGE_METER_COUNT] = {
-    "NONE", "ADC", "ESC"
+    "NONE", "ADC", "ESC", "MSP"
 };
 
 const uint8_t voltageMeterIds[] = {
@@ -61,7 +61,12 @@ const uint8_t voltageMeterIds[] = {
 #ifdef ADC_POWER_5V
     VOLTAGE_METER_ID_5V_1,
 #endif
+};
+
+const uint8_t supportedVoltageMeterCount = ARRAYLEN(voltageMeterIds);
+
 #ifdef USE_ESC_SENSOR
+const uint8_t voltageMeterESCIds[] = {
     VOLTAGE_METER_ID_ESC_COMBINED_1,
     VOLTAGE_METER_ID_ESC_MOTOR_1,
     VOLTAGE_METER_ID_ESC_MOTOR_2,
@@ -75,10 +80,29 @@ const uint8_t voltageMeterIds[] = {
     VOLTAGE_METER_ID_ESC_MOTOR_10,
     VOLTAGE_METER_ID_ESC_MOTOR_11,
     VOLTAGE_METER_ID_ESC_MOTOR_12,
+};
+const uint8_t supportedVoltageMeterESCCount = ARRAYLEN(voltageMeterESCIds);
 #endif
+
+#ifdef USE_MSP_VOLTAGE_METER
+const uint8_t voltageMeterMSPIds[] = {
+    VOLTAGE_METER_ID_CELL_1,
+    VOLTAGE_METER_ID_CELL_2,
+    VOLTAGE_METER_ID_CELL_3,
+    VOLTAGE_METER_ID_CELL_4,
+    VOLTAGE_METER_ID_CELL_5,
+    VOLTAGE_METER_ID_CELL_6,
+    VOLTAGE_METER_ID_CELL_7,
+    VOLTAGE_METER_ID_CELL_8,
+    VOLTAGE_METER_ID_CELL_9,
+    VOLTAGE_METER_ID_CELL_10,
+    VOLTAGE_METER_ID_CELL_11,
+    VOLTAGE_METER_ID_CELL_12,
 };
 
-const uint8_t supportedVoltageMeterCount = ARRAYLEN(voltageMeterIds);
+const uint8_t supportedVoltageMeterMSPCount = ARRAYLEN(voltageMeterMSPIds);
+#endif
+
 
 
 //
@@ -304,6 +328,88 @@ void voltageMeterESCReadCombined(voltageMeter_t *voltageMeter)
 #endif
 }
 
+#ifdef USE_MSP_VOLTAGE_METER
+#include "common/streambuf.h"
+
+#include "msp/msp_protocol_v2_sensor.h"
+#include "msp/msp_serial.h"
+
+uint8_t voltageMeterMSPNumCells = 0;
+voltageMeterMSPState_t voltageMeterMSPState;
+
+void voltageMeterMSPSetNumCells(uint8_t numCells)
+{
+    voltageMeterMSPNumCells = numCells;
+}
+
+uint8_t voltageMeterMSPGetNumCells(void)
+{
+    return voltageMeterMSPNumCells;
+}
+
+void voltageMeterMSPSet(uint8_t cellNumber, uint16_t voltage)
+{
+    if (cellNumber >= MSP_VOLTAGE_MAX_SUPPORTED_CELLS) {
+        return;
+    }
+    const float factor = 0.00080566; // 3.3V by 4096 steps
+    voltageMeterMSPState.voltage[cellNumber] = (uint16_t) voltage * factor * 100;
+}
+
+void voltageMeterMSPInit(void)
+{
+    memset(&voltageMeterMSPState, 0, sizeof(voltageMeterMSPState_t));
+}
+
+void voltageMeterMSPRefresh(timeUs_t currentTimeUs)
+{
+    UNUSED(currentTimeUs);
+    // TODO
+    // periodically request MSP_ANALOG
+    // static timeUs_t streamRequestAt = 0;
+    // if (cmp32(currentTimeUs, streamRequestAt) > 0) {
+    //     streamRequestAt = currentTimeUs + ((1000 * 1000) / 10); // 10hz
+    //     mspSerialPush(SERIAL_PORT_NONE, MSP2_SENSOR_BATTERY_CELL_VOLTAGE, NULL, 0, MSP_DIRECTION_REQUEST);
+    // }
+}
+
+void voltageMeterMSPRead(uint8_t cellID, voltageMeter_t *meter)
+{
+    // uint16_t totalVoltage = 0;
+    // for (unsigned i = 0; i < MSP_VOLTAGE_MAX_SUPPORTED_CELLS; i++) {
+    //     totalVoltage += voltageMeterMSPState[i].voltage;
+    // }
+    uint8_t cellNumber = cellID - VOLTAGE_METER_ID_CELL_1;
+    meter->unfiltered = voltageMeterMSPState.voltage[cellNumber];
+    meter->displayFiltered = meter->unfiltered; // no filtering for MSP voltage meters currently.
+}
+
+void voltageMeterMSSSetMinCellVoltage(uint16_t minCellVoltage)
+{
+    voltageMeterMSPState.minCellVoltage = minCellVoltage;
+}
+void voltageMeterMSPSetMaxCellVoltage(uint16_t maxCellVoltage)
+{
+    voltageMeterMSPState.maxCellVoltage = maxCellVoltage;
+}
+
+uint16_t voltageMeterMSPGetMinCellVoltage(void) 
+{
+    return voltageMeterMSPState.minCellVoltage;
+}
+
+uint16_t voltageMeterMSPGetMaxCellVoltage(void)
+{
+    return voltageMeterMSPState.maxCellVoltage;
+}
+
+uint16_t voltageMeterMSPGetCellVoltageDeviation(void) 
+{
+    return voltageMeterMSPState.maxCellVoltage - voltageMeterMSPState.minCellVoltage;
+}
+
+#endif
+
 //
 // API for using voltage meters using IDs
 //
@@ -352,6 +458,11 @@ void voltageMeterRead(voltageMeterId_e id, voltageMeter_t *meter)
     if (id >= VOLTAGE_METER_ID_ESC_MOTOR_1 && id <= VOLTAGE_METER_ID_ESC_MOTOR_20 ) {
         int motor = id - VOLTAGE_METER_ID_ESC_MOTOR_1;
         voltageMeterESCReadMotor(motor, meter);
+    } else
+#endif
+#ifdef USE_MSP_VOLTAGE_METER
+    if (id >= VOLTAGE_METER_ID_CELL_1 && id <= VOLTAGE_METER_ID_CELL_6) {
+        voltageMeterMSPRead(id, meter);
     } else
 #endif
     {

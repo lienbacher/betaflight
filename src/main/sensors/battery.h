@@ -49,7 +49,7 @@ typedef struct batteryConfig_s {
     uint16_t vbatwarningcellvoltage;        // warning voltage per cell, this triggers battery warning alarm, in 0.01V units, default is 350 (3.50V)
     uint16_t vbatnotpresentcellvoltage;     // Between vbatmaxcellvoltage and 2*this is considered to be USB powered. Below this it is notpresent
     uint8_t lvcPercentage;                  // Percentage of throttle when lvc is triggered
-    voltageMeterSource_e voltageMeterSource; // source of battery voltage meter used, either ADC or ESC
+    voltageMeterSource_e voltageMeterSource; // source of battery voltage meter used, either ADC, ESC or MSP
 
     // current
     currentMeterSource_e currentMeterSource; // source of battery current meter used, either ADC, Virtual or ESC

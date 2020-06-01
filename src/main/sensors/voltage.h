@@ -33,6 +33,7 @@ typedef enum {
     VOLTAGE_METER_NONE = 0,
     VOLTAGE_METER_ADC,
     VOLTAGE_METER_ESC,
+    VOLTAGE_METER_MSP,
     VOLTAGE_METER_COUNT
 } voltageMeterSource_e;
 
@@ -56,7 +57,8 @@ typedef struct voltageMeter_s {
 
 typedef enum {
     VOLTAGE_SENSOR_TYPE_ADC_RESISTOR_DIVIDER = 0,
-    VOLTAGE_SENSOR_TYPE_ESC
+    VOLTAGE_SENSOR_TYPE_ESC,
+    VOLTAGE_SENSOR_TYPE_MSP
 } voltageSensorType_e;
 
 
@@ -96,6 +98,19 @@ typedef struct voltageSensorADCConfig_s {
 PG_DECLARE_ARRAY(voltageSensorADCConfig_t, MAX_VOLTAGE_SENSOR_ADC, voltageSensorADCConfig);
 
 //
+// MSP
+//
+
+#define MSP_VOLTAGE_MAX_SUPPORTED_CELLS 12
+
+typedef struct voltageMeterMSPState_s {
+    int8_t cellNumber;
+    int16_t voltage[MSP_VOLTAGE_MAX_SUPPORTED_CELLS];           // current read by current sensor in Volts
+    int16_t minCellVoltage;
+    int16_t maxCellVoltage;
+} voltageMeterMSPState_t;
+
+//
 // Main API
 //
 void voltageMeterReset(voltageMeter_t *voltageMeter);
@@ -111,6 +126,17 @@ void voltageMeterESCRefresh(void);
 void voltageMeterESCReadCombined(voltageMeter_t *voltageMeter);
 void voltageMeterESCReadMotor(uint8_t motor, voltageMeter_t *voltageMeter);
 
+void voltageMeterMSPInit(void);
+void voltageMeterMSPRefresh(timeUs_t currentTimeUs);
+void voltageMeterMSPRead(uint8_t cellId, voltageMeter_t *meter);
+void voltageMeterMSPSet(uint8_t cellNumber, uint16_t voltage);
+void voltageMeterMSPSetNumCells(uint8_t numCells);
+void voltageMeterMSSSetMinCellVoltage(uint16_t minCellVoltage);
+void voltageMeterMSPSetMaxCellVoltage(uint16_t maxCellVoltage);
+uint8_t voltageMeterMSPGetNumCells(void);
+uint16_t voltageMeterMSPGetMinCellVoltage(void);
+uint16_t voltageMeterMSPGetCellVoltageDeviation(void);
+uint16_t voltageMeterMSPGetMaxCellVoltage(void);
 
 //
 // API for reading/configuring current meters by id.
@@ -118,7 +144,11 @@ void voltageMeterESCReadMotor(uint8_t motor, voltageMeter_t *voltageMeter);
 extern const uint8_t voltageMeterADCtoIDMap[MAX_VOLTAGE_SENSOR_ADC];
 
 extern const uint8_t supportedVoltageMeterCount;
+extern const uint8_t supportedVoltageMeterESCCount;
+extern const uint8_t supportedVoltageMeterMSPCount;
 extern const uint8_t voltageMeterIds[];
+extern const uint8_t voltageMeterESCIds[];
+extern const uint8_t voltageMeterMSPIds[];
 void voltageMeterRead(voltageMeterId_e id, voltageMeter_t *voltageMeter);
 
 bool isSagCompensationConfigured(void);

@@ -143,6 +143,23 @@ void batteryUpdateVoltage(timeUs_t currentTimeUs)
             voltageMeterADCRead(VOLTAGE_SENSOR_ADC_VBAT, &voltageMeter);
             break;
 
+        case VOLTAGE_METER_MSP:
+#ifdef USE_MSP_VOLTAGE_METER
+            //voltageMeterMSPRefresh(currentTimeUs);    // needs rewrite for V2
+            
+            voltageMeter.unfiltered = 0;    // reset voltage to zero
+            voltageMeter_t cellVoltageMeter;
+
+            for (unsigned i = 0; i < voltageMeterMSPGetNumCells(); i++) {
+                uint8_t cellId = VOLTAGE_METER_ID_CELL_1 + i;
+                voltageMeterMSPRead(cellId, &cellVoltageMeter);
+                voltageMeter.unfiltered += cellVoltageMeter.unfiltered; // increase by cell voltage
+            }
+
+            voltageMeter.displayFiltered = voltageMeter.unfiltered;
+#endif
+            break;
+
         default:
         case VOLTAGE_METER_NONE:
             voltageMeterReset(&voltageMeter);
@@ -371,6 +388,12 @@ void batteryInit(void)
             voltageMeterADCInit();
             break;
 
+        case VOLTAGE_METER_MSP:
+#ifdef USE_MSP_VOLTAGE_METER
+            voltageMeterMSPInit();
+#endif
+            break;
+
         default:
             break;
     }
@@ -522,6 +545,18 @@ uint16_t getBatteryAverageCellVoltage(void)
 {
     return voltageMeter.displayFiltered / batteryCellCount;
 }
+
+#ifdef USE_MSP_VOLTAGE_METER
+uint16_t getBatteryMinimumCellVoltage()
+{
+    return voltageMeterMSPGetMinCellVoltage();
+}
+
+uint16_t getBatteryCellVoltageDeviation()
+{
+    return voltageMeterMSPGetCellVoltageDeviation();;
+}
+#endif
 
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
 uint16_t getBatterySagCellVoltage(void)
